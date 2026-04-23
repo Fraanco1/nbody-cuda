@@ -4,7 +4,7 @@
 // Expands a 10-bit integer into 30 bits
 // by inserting 2 zeros after each bit.
 
-#include "norton.cuh"
+#include "morton.cuh"
 
 __device__ unsigned int expandBits(unsigned int v)
 {
