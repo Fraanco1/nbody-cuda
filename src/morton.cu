@@ -55,7 +55,7 @@ int main() {
 
     // Allocate device memory
     Vec3 *d_points;
-    unsigned_int *d_mortons;
+    unsigned int *d_mortons;
 
     cudaMalloc(&d_points, vecSize);
     cudaMalloc(&d_mortons, nortonSize)
