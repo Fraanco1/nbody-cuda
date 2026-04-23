@@ -58,7 +58,7 @@ int main() {
     unsigned int *d_mortons;
 
     cudaMalloc(&d_points, vecSize);
-    cudaMalloc(&d_mortons, nortonSize)
+    cudaMalloc(&d_mortons, nortonSize);
 
     // Copy host to device
     cudaMemcpy(d_points, h_points, vecSize, cudaMemcpyHostToDevice);
