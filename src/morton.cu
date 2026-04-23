@@ -71,6 +71,11 @@ int main() {
     // Copy device to host
     cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
 
+    // Print results
+    for(int i = 0; i < n; i++) {
+        cout << "(" << h_points[i].x << h_points[i].y << h_points[i].z << ")" << " -> " << h_mortons[i] << endl;  
+    }
+
     // Free memory
     cudaFree(d_points);
     cudaFree(d_mortons);
