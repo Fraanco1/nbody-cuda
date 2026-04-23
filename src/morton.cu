@@ -3,6 +3,10 @@
 
 // Expands a 10-bit integer into 30 bits
 // by inserting 2 zeros after each bit.
+
+#include <iostream>
+using namespace std;
+
 unsigned int expandBits(unsigned int v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
