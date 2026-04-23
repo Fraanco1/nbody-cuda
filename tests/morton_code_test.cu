@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thrust/sort>
 #include "morton.cuh"
 #include "tree.cuh"
 
@@ -34,6 +35,9 @@ int main() {
     int threadsPerBlock = 256;
     int blocks = (n + threadsPerBlock - 1)/threadsPerBlock;
     morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons);
+
+    // Sorts in GPU
+    thrust::sort(d_mortons);
 
     // Copy device to host
     cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
