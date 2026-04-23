@@ -66,7 +66,7 @@ int main() {
     // Launch kernel
     int threadsPerBlock = 256;
     int blocks = (n + threadsPerBlock - 1)/threadsPerBlock;
-    norton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons);
+    morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons);
 
     // Copy device to host
     cudaMemcpy(h_nortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
@@ -75,7 +75,7 @@ int main() {
     cudaFree(d_points);
     cudaFree(d_mortons);
     free(h_points);
-    free(h_mortons;)
+    free(h_mortons);
 
     return 0;
 }
