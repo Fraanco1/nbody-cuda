@@ -9,7 +9,7 @@ using namespace std;
 
 struct Vec3 {
     float x, y, z;
-}
+};
 
 __device__ unsigned int expandBits(unsigned int v)
 {
