@@ -1,0 +1,1 @@
+// Generates a Morton code for a given 3D point.
