@@ -48,9 +48,9 @@ int main() {
 
     // Puts some values into points
     for(int i = 0; i < n; i++) {
-        points[i].x = (float)i/n;
-        points[i].y = (float)i/n;
-        points[i].z = (float)i/n;
+        h_points[i].x = (float)i/n;
+        h_points[i].y = (float)i/n;
+        h_points[i].z = (float)i/n;
     } 
 
     // Allocate device memory
