@@ -40,11 +40,11 @@ __global__ void morton3D(Vec3 *point, unsigned int *mortonCode)
 int main() {
     int n = 1024;
     size_t vecSize = n * sizeof(Vec3);
-    size_t nortonSize = n * sizeof(unsigned int)
+    size_t nortonSize = n * sizeof(unsigned int);
 
     // Allocate host memory
-    Vec3 *h_points = (*Vec3)malloc(vecSize);
-    unsigned int *h_mortons = (*unsigned int)malloc(vecSize);
+    Vec3 *h_points = (Vec3*)malloc(vecSize);
+    unsigned int *h_mortons = (unsigned int*)malloc(vecSize);
 
     // Puts some values into points
     for(int i = 0; i < n; i++) {
