@@ -5,6 +5,11 @@
 #include "tree.cuh"
 using namespace std;
 
+// Wrapper kernel to call __device__ findSplit from host
+__global__ void findSplitKernel(unsigned int* mortons, int first, int last, int* result) {
+    *result = findSplit(mortons, first, last);
+}
+
 int main() {
     int n = 1024;
     size_t vecSize    = n * sizeof(Vec3);
@@ -12,7 +17,7 @@ int main() {
 
     // Allocate host memory
     Vec3*         h_points  = (Vec3*)malloc(vecSize);
-    unsigned int* h_mortons = (unsigned int*)malloc(mortonSize); // fixed
+    unsigned int* h_mortons = (unsigned int*)malloc(mortonSize);
 
     // Fill points
     for (int i = 0; i < n; i++) {
@@ -39,11 +44,16 @@ int main() {
     thrust::device_ptr<unsigned int> ptr(d_mortons);
     thrust::sort(ptr, ptr + n);
 
+    // Call findSplit on device
     int* d_gamma;
     cudaMalloc(&d_gamma, sizeof(int));
-    int gamma = findSplit<<<1, 1>>>(d_mortons, 0, n - 1);
+    findSplitKernel<<<1, 1>>>(d_mortons, 0, n - 1, d_gamma);
+    cudaDeviceSynchronize();
+
+    int gamma;
     cudaMemcpy(&gamma, d_gamma, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_gamma);
+
     cout << "Split index: " << gamma << endl;
 
     // Copy back
