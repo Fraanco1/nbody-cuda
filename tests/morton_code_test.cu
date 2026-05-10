@@ -39,6 +39,9 @@ int main() {
     thrust::device_ptr<unsigned int> ptr(d_mortons);
     thrust::sort(ptr, ptr + n);
 
+    int gamma = findSplit(d_mortons, 0, n - 1);
+    cout << "Split index: " << gamma << endl;
+
     // Copy back
     cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
 
