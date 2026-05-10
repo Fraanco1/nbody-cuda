@@ -1,5 +1,5 @@
 #include <iostream>
-#include <thrust/sort>
+#include <thrust/sort.h>
 #include "morton.cuh"
 #include "tree.cuh"
 
