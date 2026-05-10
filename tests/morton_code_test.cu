@@ -39,7 +39,12 @@ int main() {
     thrust::device_ptr<unsigned int> ptr(d_mortons);
     thrust::sort(ptr, ptr + n);
 
-    int gamma = findSplit(d_mortons, 0, n - 1);
+    int* d_gamma;
+    cudaMalloc(&d_gamma, sizeof(int));
+    findSplit<<<1, 1>>>(d_mortons, 0, n - 1, d_gamma);
+    int gamma;
+    cudaMemcpy(&gamma, d_gamma, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaFree(d_gamma);
     cout << "Split index: " << gamma << endl;
 
     // Copy back
