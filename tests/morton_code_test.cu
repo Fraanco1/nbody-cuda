@@ -1,5 +1,6 @@
 #include <iostream>
 #include <thrust/sort.h>
+#include <thrust/device_ptr.h>
 #include "morton.cuh"
 #include "tree.cuh"
 using namespace std;
@@ -35,7 +36,8 @@ int main() {
     morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons, n);
 
     // Sort on GPU
-    thrust::sort(d_mortons, d_mortons + n);
+    thrust::device_ptr<unsigned int> ptr(d_mortons);
+    thrust::sort(ptr, ptr + n);
 
     // Copy back
     cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
