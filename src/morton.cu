@@ -17,9 +17,10 @@ __device__ unsigned int expandBits(unsigned int v)
 
 // Calculates a 30-bit Morton code for the
 // given 3D point located within the unit cube [0,1].
-__global__ void morton3D(Vec3 *point, unsigned int *mortonCode)
+__global__ void morton3D(Vec3 *point, unsigned int *mortonCode, int n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
     float x = point[i].x;
     float y = point[i].y;
     float z = point[i].z;
