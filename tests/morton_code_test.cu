@@ -35,7 +35,7 @@ int main() {
     morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons, n);
 
     // Sort on GPU
-    thrust::sort(d_mortons.begin(), d_mortons.end());
+    thrust::sort(d_mortons, d_mortons + n);
 
     // Copy back
     cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
