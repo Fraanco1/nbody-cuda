@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "bvh.cuh"
 
 __device__ __forceinline__ int safeClz(unsigned int x) {
     return x == 0 ? 32 : __clz(x);
@@ -13,12 +14,6 @@ __device__ __forceinline__ int delta(unsigned int* mortons, int i, int j, int n)
     if (j < 0 || j >= n) return -1;
     return safeClz(mortons[i] ^ mortons[j]);
 }
-
-struct InternalNode {
-    int  left,  right;
-    bool leftIsLeaf, rightIsLeaf;
-    int  first, last;
-};
 
 __device__ int findSplit(
     unsigned int* sortedMortonCodes,
@@ -49,19 +44,18 @@ __device__ int findSplit(
     return split;
 }
 
-// One thread per internal node — all n-1 nodes built in a single launch
 __global__ void buildTree(
     unsigned int* mortons,
-    InternalNode* internalNodes,
-    int           n)
+    BVH           bvh)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int n = bvh.n;
     if (i >= n - 1) return;
 
-    // 1. Determine direction of the range
+    // 1. Determine direction
     int d = sign(delta(mortons, i, i + 1, n) - delta(mortons, i, i - 1, n));
 
-    // 2. Find upper bound of range length
+    // 2. Find upper bound
     int deltaMin = delta(mortons, i, i - d, n);
     int lmax = 2;
     while (delta(mortons, i, i + lmax * d, n) > deltaMin)
@@ -77,15 +71,31 @@ __global__ void buildTree(
     int first = min(i, j);
     int last  = max(i, j);
 
-    internalNodes[i].first = first;
-    internalNodes[i].last  = last;
+    bvh.first[i] = first;
+    bvh.last[i]  = last;
 
-    // 4. Find split within this node's range
+    // 4. Find split
     int gamma = findSplit(mortons, first, last);
 
-    internalNodes[i].left       = gamma;
-    internalNodes[i].leftIsLeaf = (first == gamma);
+    // 5. Left child
+    bool leftIsLeaf      = (first == gamma);
+    int  leftIdx         = leftIsLeaf ? (n - 1 + gamma) : gamma;
+    bvh.left[i]          = leftIdx;
+    bvh.leftIsLeaf[i]    = leftIsLeaf;
 
-    internalNodes[i].right       = gamma + 1;
-    internalNodes[i].rightIsLeaf = (gamma + 1 == last);
+    if (leftIsLeaf)
+        bvh.leafParent[gamma] = i;
+    else
+        bvh.parent[gamma]     = i;
+
+    // 6. Right child
+    bool rightIsLeaf     = (gamma + 1 == last);
+    int  rightIdx        = rightIsLeaf ? (n - 1 + gamma + 1) : (gamma + 1);
+    bvh.right[i]         = rightIdx;
+    bvh.rightIsLeaf[i]   = rightIsLeaf;
+
+    if (rightIsLeaf)
+        bvh.leafParent[gamma + 1] = i;
+    else
+        bvh.parent[gamma + 1]     = i;
 }
