@@ -5,6 +5,15 @@ __device__ __forceinline__ int safeClz(unsigned int x) {
     return x == 0 ? 32 : __clz(x);
 }
 
+__device__ __forceinline__ int sign(int x) {
+    return x > 0 ? 1 : -1;
+}
+
+__device__ __forceinline__ int delta(unsigned int* mortons, int i, int j, int n) {
+    if (j < 0 || j >= n) return -1;
+    return safeClz(mortons[i] ^ mortons[j]);
+}
+
 struct InternalNode {
     int  left,  right;
     bool leftIsLeaf, rightIsLeaf;
@@ -40,59 +49,43 @@ __device__ int findSplit(
     return split;
 }
 
-__global__ void buildTreeLevel(
+// One thread per internal node — all n-1 nodes built in a single launch
+__global__ void buildTree(
     unsigned int* mortons,
-    InternalNode* nodes,
-    int*          currFrontier,   // (nodeIdx, first, last) triplets
-    int*          nextFrontier,
-    int*          nextFrontierSize,
-    int*          nodeCounter,
-    int           currSize)
+    InternalNode* internalNodes,
+    int           n)
 {
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid >= currSize) return;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n - 1) return;
 
-    // Unpack this node's triplet
-    int nodeIdx = currFrontier[tid * 3 + 0];
-    int first   = currFrontier[tid * 3 + 1];
-    int last    = currFrontier[tid * 3 + 2];
+    // 1. Determine direction of the range
+    int d = sign(delta(mortons, i, i + 1, n) - delta(mortons, i, i - 1, n));
 
-    nodes[nodeIdx].first = first;
-    nodes[nodeIdx].last  = last;
+    // 2. Find upper bound of range length
+    int deltaMin = delta(mortons, i, i - d, n);
+    int lmax = 2;
+    while (delta(mortons, i, i + lmax * d, n) > deltaMin)
+        lmax <<= 1;
 
+    // 3. Find exact end via binary search
+    int l = 0;
+    for (int t = lmax >> 1; t >= 1; t >>= 1)
+        if (delta(mortons, i, i + (l + t) * d, n) > deltaMin)
+            l += t;
+
+    int j     = i + l * d;
+    int first = min(i, j);
+    int last  = max(i, j);
+
+    internalNodes[i].first = first;
+    internalNodes[i].last  = last;
+
+    // 4. Find split within this node's range
     int gamma = findSplit(mortons, first, last);
 
-    // ── Left child [first, gamma] ─────────────────────────────────────────
-    if (first == gamma) {
-        // leaf
-        nodes[nodeIdx].left       = gamma;
-        nodes[nodeIdx].leftIsLeaf = true;
-    } else {
-        // internal — claim a node slot and push to next frontier
-        int leftIdx = atomicAdd(nodeCounter, 1);
-        nodes[nodeIdx].left       = leftIdx;
-        nodes[nodeIdx].leftIsLeaf = false;
+    internalNodes[i].left       = gamma;
+    internalNodes[i].leftIsLeaf = (first == gamma);
 
-        int pos = atomicAdd(nextFrontierSize, 1) * 3;
-        nextFrontier[pos + 0] = leftIdx;
-        nextFrontier[pos + 1] = first;
-        nextFrontier[pos + 2] = gamma;
-    }
-
-    // ── Right child [gamma+1, last] ───────────────────────────────────────
-    if (gamma + 1 == last) {
-        // leaf
-        nodes[nodeIdx].right       = gamma + 1;
-        nodes[nodeIdx].rightIsLeaf = true;
-    } else {
-        // internal — claim a node slot and push to next frontier
-        int rightIdx = atomicAdd(nodeCounter, 1);
-        nodes[nodeIdx].right       = rightIdx;
-        nodes[nodeIdx].rightIsLeaf = false;
-
-        int pos = atomicAdd(nextFrontierSize, 1) * 3;
-        nextFrontier[pos + 0] = rightIdx;
-        nextFrontier[pos + 1] = gamma + 1;
-        nextFrontier[pos + 2] = last;
-    }
+    internalNodes[i].right       = gamma + 1;
+    internalNodes[i].rightIsLeaf = (gamma + 1 == last);
 }
