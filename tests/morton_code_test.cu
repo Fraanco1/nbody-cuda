@@ -7,23 +7,22 @@ using namespace std;
 
 int main() {
     int n = 1024;
-    size_t vecSize        = n * sizeof(Vec3);
-    size_t mortonSize     = n * sizeof(unsigned int);
-    size_t internalSize   = (n - 1) * sizeof(InternalNode);
+    size_t vecSize      = n * sizeof(Vec3);
+    size_t mortonSize   = n * sizeof(unsigned int);
+    size_t internalSize = (n - 1) * sizeof(InternalNode);
 
-    // Allocate host memory
-    Vec3*          h_points        = (Vec3*)malloc(vecSize);
-    unsigned int*  h_mortons       = (unsigned int*)malloc(mortonSize);
-    InternalNode*  h_internalNodes = (InternalNode*)malloc(internalSize);
+    // Host memory
+    Vec3*         h_points        = (Vec3*)malloc(vecSize);
+    unsigned int* h_mortons       = (unsigned int*)malloc(mortonSize);
+    InternalNode* h_internalNodes = (InternalNode*)malloc(internalSize);
 
-    // Fill points
     for (int i = 0; i < n; i++) {
         h_points[i].x = (float)i / n;
         h_points[i].y = (float)i / n;
         h_points[i].z = (float)i / n;
     }
 
-    // Allocate device memory
+    // Device memory
     Vec3*         d_points;
     unsigned int* d_mortons;
     InternalNode* d_internalNodes;
@@ -31,42 +30,74 @@ int main() {
     cudaMalloc(&d_mortons,       mortonSize);
     cudaMalloc(&d_internalNodes, internalSize);
 
-    // Copy points to device
     cudaMemcpy(d_points, h_points, vecSize, cudaMemcpyHostToDevice);
 
-    // Compute Morton codes
-    int threadsPerBlock = 256;
-    int blocks          = (n + threadsPerBlock - 1) / threadsPerBlock;
-    morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons, n);
-
-    // Sort Morton codes on GPU
+    // Morton codes + sort
+    int threads = 256;
+    int blocks  = (n + threads - 1) / threads;
+    morton3D<<<blocks, threads>>>(d_points, d_mortons, n);
     thrust::device_ptr<unsigned int> ptr(d_mortons);
     thrust::sort(ptr, ptr + n);
 
-    // Build tree
-    int treeBlocks = (n - 1 + threadsPerBlock - 1) / threadsPerBlock;
-    buildTree<<<treeBlocks, threadsPerBlock>>>(d_mortons, d_internalNodes, n);
-    cudaDeviceSynchronize();
+    // ── Top-down build ────────────────────────────────────────────────────
+    int* d_currFrontier,* d_nextFrontier,* d_nextFrontierSize,* d_nodeCounter;
+    cudaMalloc(&d_currFrontier,     (n - 1) * 3 * sizeof(int));
+    cudaMalloc(&d_nextFrontier,     (n - 1) * 3 * sizeof(int));
+    cudaMalloc(&d_nextFrontierSize, sizeof(int));
+    cudaMalloc(&d_nodeCounter,      sizeof(int));
 
-    // Copy results back
-    cudaMemcpy(h_mortons,       d_mortons,       mortonSize,   cudaMemcpyDeviceToHost);
+    // Seed: root is node 0, covers [0, n-1]
+    int seed[3]  = {0, 0, n - 1};
+    int one      = 1;   // nodeCounter starts at 1 (root claimed 0)
+    cudaMemcpy(d_currFrontier, seed, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_nodeCounter,  &one, sizeof(int),     cudaMemcpyHostToDevice);
+
+    int currSize = 1;
+
+    while (currSize > 0) {
+        cudaMemset(d_nextFrontierSize, 0, sizeof(int));
+
+        int levelBlocks = (currSize + threads - 1) / threads;
+        buildTreeLevel<<<levelBlocks, threads>>>(
+            d_mortons,
+            d_internalNodes,
+            d_currFrontier,
+            d_nextFrontier,
+            d_nextFrontierSize,
+            d_nodeCounter,
+            currSize);
+        cudaDeviceSynchronize();
+
+        // Swap frontiers
+        int* tmp       = d_currFrontier;
+        d_currFrontier = d_nextFrontier;
+        d_nextFrontier = tmp;
+
+        cudaMemcpy(&currSize, d_nextFrontierSize, sizeof(int), cudaMemcpyDeviceToHost);
+    }
+
+    // Copy back and print
     cudaMemcpy(h_internalNodes, d_internalNodes, internalSize, cudaMemcpyDeviceToHost);
 
-    // Print tree
-    cout << "Internal nodes (n-1 = " << n - 1 << "):" << endl;
     for (int i = 0; i < n - 1; i++) {
         cout << "Node " << i
-             << " | left: "  << h_internalNodes[i].left
+             << " | range=[" << h_internalNodes[i].first
+             << ", "         << h_internalNodes[i].last << "]"
+             << " | left="   << h_internalNodes[i].left
              << (h_internalNodes[i].leftIsLeaf  ? " (leaf)" : " (internal)")
-             << " | right: " << h_internalNodes[i].right
+             << " | right="  << h_internalNodes[i].right
              << (h_internalNodes[i].rightIsLeaf ? " (leaf)" : " (internal)")
              << endl;
     }
 
-    // Free
+    // Cleanup
     cudaFree(d_points);
     cudaFree(d_mortons);
     cudaFree(d_internalNodes);
+    cudaFree(d_currFrontier);
+    cudaFree(d_nextFrontier);
+    cudaFree(d_nextFrontierSize);
+    cudaFree(d_nodeCounter);
     free(h_points);
     free(h_mortons);
     free(h_internalNodes);
