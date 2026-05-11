@@ -58,7 +58,7 @@ int main() {
     cudaMemcpy(h_first,       bvh.first,       (n-1)*sizeof(int),  cudaMemcpyDeviceToHost);
     cudaMemcpy(h_last,        bvh.last,        (n-1)*sizeof(int),  cudaMemcpyDeviceToHost);
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < n; i++) {
         cout << "Node " << i
              << " | range=[" << h_first[i] << ", " << h_last[i] << "]"
              << " | parent=" << h_parent[i]
