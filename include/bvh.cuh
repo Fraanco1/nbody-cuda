@@ -1,7 +1,14 @@
 #pragma once
+#include "morton.cuh"
+
+struct NodeData {
+    float minX, minY, minZ;
+    float maxX, maxY, maxZ;
+    float comX, comY, comZ;
+    float mass;
+};
 
 struct BVH {
-    // internal nodes — sized (n-1)
     int*  parent;
     int*  left;
     int*  right;
@@ -9,19 +16,14 @@ struct BVH {
     bool* rightIsLeaf;
     int*  first;
     int*  last;
-
-    // leaves — sized n
     int*  leafParent;
-
-    int n;
+    int   n;
 };
 
 inline BVH bvhAlloc(int n) {
     BVH bvh;
     bvh.n = n;
-
     int internal = n - 1;
-
     cudaMalloc(&bvh.parent,      internal * sizeof(int));
     cudaMalloc(&bvh.left,        internal * sizeof(int));
     cudaMalloc(&bvh.right,       internal * sizeof(int));
@@ -30,11 +32,8 @@ inline BVH bvhAlloc(int n) {
     cudaMalloc(&bvh.first,       internal * sizeof(int));
     cudaMalloc(&bvh.last,        internal * sizeof(int));
     cudaMalloc(&bvh.leafParent,  n        * sizeof(int));
-
-    // root has no parent
     cudaMemset(bvh.parent,     -1, internal * sizeof(int));
     cudaMemset(bvh.leafParent, -1, n        * sizeof(int));
-
     return bvh;
 }
 
@@ -49,11 +48,15 @@ inline void bvhFree(BVH& bvh) {
     cudaFree(bvh.leafParent);
 }
 
-struct NodeData {
-    // AABB
-    float minX, minY, minZ;
-    float maxX, maxY, maxZ;
-    // Center of mass
-    float comX, comY, comZ;
-    float mass;
-};
+// ── Kernel declarations ───────────────────────────────────────────────────
+__global__ void initLeaves(
+    NodeData* nodeData,
+    Vec3*     positions,
+    float*    masses,
+    int       n);
+
+__global__ void computeAABBandCoM(
+    NodeData* nodeData,
+    BVH       bvh,
+    int*      flags,
+    int       n);
