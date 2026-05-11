@@ -10,26 +10,43 @@ struct InternalNode {
 };
 
 __global__ void buildTree(
-    unsigned int* sortedMortonCodes,
+    unsigned int* mortons,
     InternalNode* internalNodes,
     int           n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n - 1) return;
 
-    int gamma = findSplit(sortedMortonCodes, i, n - 1);
+    // 1. Determine direction
+    int d = sign(delta(mortons, i, i + 1, n) - delta(mortons, i, i - 1, n));
 
-    // Left child covers [i, gamma]
+    // 2. Compute upper bound
+    int deltaMin = delta(mortons, i, i - d, n);
+    int lmax = 2;
+    while (delta(mortons, i, i + lmax * d, n) > deltaMin)
+        lmax <<= 1;
+
+    // 3. Find exact end with binary search
+    int l = 0;
+    for (int t = lmax >> 1; t >= 1; t >>= 1)
+        if (delta(mortons, i, i + (l + t) * d, n) > deltaMin)
+            l += t;
+
+    int j     = i + l * d;
+    int first = min(i, j);
+    int last  = max(i, j);
+
+    internalNodes[i].first = first;
+    internalNodes[i].last  = last;
+
+    // 4. Find split within THIS node's range [first, last]
+    int gamma = findSplit(mortons, first, last);  // ← not (i, n-1)
+
     internalNodes[i].left       = gamma;
-    internalNodes[i].leftIsLeaf = (i == gamma);
+    internalNodes[i].leftIsLeaf = (first == gamma);
 
-    // Right child covers [gamma+1, n-1]
     internalNodes[i].right       = gamma + 1;
-    internalNodes[i].rightIsLeaf = (gamma + 1 == n - 1);
-}
-
-__device__ __forceinline__ int safeClz(unsigned int x) {
-    return x == 0 ? 32 : __clz(x);
+    internalNodes[i].rightIsLeaf = (gamma + 1 == last);
 }
 
 __device__ int findSplit(
