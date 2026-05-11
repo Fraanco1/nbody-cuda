@@ -48,3 +48,12 @@ inline void bvhFree(BVH& bvh) {
     cudaFree(bvh.last);
     cudaFree(bvh.leafParent);
 }
+
+struct NodeData {
+    // AABB
+    float minX, minY, minZ;
+    float maxX, maxY, maxZ;
+    // Center of mass
+    float comX, comY, comZ;
+    float mass;
+};
