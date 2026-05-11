@@ -3,6 +3,31 @@
 #pragma once
 #include <cstdint>
 
+struct InternalNode {
+    int  left,  right;
+    bool leftIsLeaf;
+    bool rightIsLeaf;
+};
+
+__global__ void buildTree(
+    unsigned int* sortedMortonCodes,
+    InternalNode* internalNodes,
+    int           n)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n - 1) return;
+
+    int gamma = findSplit(sortedMortonCodes, i, n - 1);
+
+    // Left child covers [i, gamma]
+    internalNodes[i].left       = gamma;
+    internalNodes[i].leftIsLeaf = (i == gamma);
+
+    // Right child covers [gamma+1, n-1]
+    internalNodes[i].right       = gamma + 1;
+    internalNodes[i].rightIsLeaf = (gamma + 1 == n - 1);
+}
+
 __device__ __forceinline__ int safeClz(unsigned int x) {
     return x == 0 ? 32 : __clz(x);
 }

@@ -5,19 +5,16 @@
 #include "tree.cuh"
 using namespace std;
 
-// Wrapper kernel to call __device__ findSplit from host
-__global__ void findSplitKernel(unsigned int* mortons, int first, int last, int* result) {
-    *result = findSplit(mortons, first, last);
-}
-
 int main() {
     int n = 1024;
-    size_t vecSize    = n * sizeof(Vec3);
-    size_t mortonSize = n * sizeof(unsigned int);
+    size_t vecSize        = n * sizeof(Vec3);
+    size_t mortonSize     = n * sizeof(unsigned int);
+    size_t internalSize   = (n - 1) * sizeof(InternalNode);
 
     // Allocate host memory
-    Vec3*         h_points  = (Vec3*)malloc(vecSize);
-    unsigned int* h_mortons = (unsigned int*)malloc(mortonSize);
+    Vec3*          h_points        = (Vec3*)malloc(vecSize);
+    unsigned int*  h_mortons       = (unsigned int*)malloc(mortonSize);
+    InternalNode*  h_internalNodes = (InternalNode*)malloc(internalSize);
 
     // Fill points
     for (int i = 0; i < n; i++) {
@@ -29,45 +26,49 @@ int main() {
     // Allocate device memory
     Vec3*         d_points;
     unsigned int* d_mortons;
-    cudaMalloc(&d_points,  vecSize);
-    cudaMalloc(&d_mortons, mortonSize);
+    InternalNode* d_internalNodes;
+    cudaMalloc(&d_points,        vecSize);
+    cudaMalloc(&d_mortons,       mortonSize);
+    cudaMalloc(&d_internalNodes, internalSize);
 
-    // Copy to device
+    // Copy points to device
     cudaMemcpy(d_points, h_points, vecSize, cudaMemcpyHostToDevice);
 
     // Compute Morton codes
     int threadsPerBlock = 256;
-    int blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    int blocks          = (n + threadsPerBlock - 1) / threadsPerBlock;
     morton3D<<<blocks, threadsPerBlock>>>(d_points, d_mortons, n);
 
-    // Sort on GPU
+    // Sort Morton codes on GPU
     thrust::device_ptr<unsigned int> ptr(d_mortons);
     thrust::sort(ptr, ptr + n);
 
-    // Call findSplit on device
-    int* d_gamma;
-    cudaMalloc(&d_gamma, sizeof(int));
-    findSplitKernel<<<1, 1>>>(d_mortons, 0, n - 1, d_gamma);
+    // Build tree
+    int treeBlocks = (n - 1 + threadsPerBlock - 1) / threadsPerBlock;
+    buildTree<<<treeBlocks, threadsPerBlock>>>(d_mortons, d_internalNodes, n);
     cudaDeviceSynchronize();
 
-    int gamma;
-    cudaMemcpy(&gamma, d_gamma, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaFree(d_gamma);
+    // Copy results back
+    cudaMemcpy(h_mortons,       d_mortons,       mortonSize,   cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_internalNodes, d_internalNodes, internalSize, cudaMemcpyDeviceToHost);
 
-    cout << "Split index: " << gamma << endl;
-
-    // Copy back
-    cudaMemcpy(h_mortons, d_mortons, mortonSize, cudaMemcpyDeviceToHost);
-
-    // Print
-    for (int i = 0; i < n; i++) {
-        cout << i << " -> " << h_mortons[i] << endl;
+    // Print tree
+    cout << "Internal nodes (n-1 = " << n - 1 << "):" << endl;
+    for (int i = 0; i < n - 1; i++) {
+        cout << "Node " << i
+             << " | left: "  << h_internalNodes[i].left
+             << (h_internalNodes[i].leftIsLeaf  ? " (leaf)" : " (internal)")
+             << " | right: " << h_internalNodes[i].right
+             << (h_internalNodes[i].rightIsLeaf ? " (leaf)" : " (internal)")
+             << endl;
     }
 
     // Free
     cudaFree(d_points);
     cudaFree(d_mortons);
+    cudaFree(d_internalNodes);
     free(h_points);
     free(h_mortons);
+    free(h_internalNodes);
     return 0;
 }
