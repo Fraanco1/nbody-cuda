@@ -1,17 +1,17 @@
-#include "bvh.cuh"
-#include "morton.cuh"
+#include "tree.cuh"
 
-// Step 1 — initialize leaves from body positions
+// Step 1 — initialize one NodeData per leaf from the (sorted) body arrays.
+// Leaf i in the tree corresponds to body i in sorted order, stored flat
+// at array index (n - 1 + i).
 __global__ void initLeaves(
-    NodeData*    nodeData,
-    Vec3*        positions,
-    float*       masses,
-    int          n)
+    NodeData* nodeData,
+    Vec3*     positions,
+    float*    masses,
+    int       n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
 
-    // leaf i lives at index (n - 1 + i) in the flat array
     int idx = n - 1 + i;
 
     nodeData[idx].minX = positions[i].x;
@@ -27,36 +27,34 @@ __global__ void initLeaves(
     nodeData[idx].mass = masses[i];
 }
 
-// Step 2 — bottom-up pass, one thread per leaf
+// Step 2 — bottom-up pass, one thread per leaf.
+// Each thread walks up the tree; at every internal node it uses an atomic
+// flag so that the *second* thread to arrive (when both children are ready)
+// is the one that merges them. The first thread exits.
 __global__ void computeAABBandCoM(
-    NodeData*    nodeData,
-    BVH          bvh,
-    int*         flags,     // atomic flags, one per internal node, init to 0
-    int          n)
+    NodeData* nodeData,
+    BVHArrays bvh,
+    int*      flags,
+    int       n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
 
-    // start at this leaf's parent
     int nodeIdx = bvh.leafParent[i];
 
     while (nodeIdx != -1) {
-
-        // first thread to arrive exits
-        // second thread to arrive proceeds
         int arrived = atomicAdd(&flags[nodeIdx], 1);
-        if (arrived == 0)
-            break;
+        if (arrived == 0) break;   // we're first; the second thread will do the work
 
-        // both children are ready — read their data
-        int   leftIdx  = bvh.left[nodeIdx];
-        int   rightIdx = bvh.right[nodeIdx];
+        // Both children's NodeData is now ready — merge them.
+        int leftIdx  = bvh.left[nodeIdx];
+        int rightIdx = bvh.right[nodeIdx];
 
         NodeData left  = nodeData[leftIdx];
         NodeData right = nodeData[rightIdx];
 
-        // merge AABBs
         NodeData node;
+        // AABB union
         node.minX = fminf(left.minX, right.minX);
         node.minY = fminf(left.minY, right.minY);
         node.minZ = fminf(left.minZ, right.minZ);
@@ -64,17 +62,15 @@ __global__ void computeAABBandCoM(
         node.maxY = fmaxf(left.maxY, right.maxY);
         node.maxZ = fmaxf(left.maxZ, right.maxZ);
 
-        // merge centers of mass
+        // Mass-weighted center of mass
         float totalMass = left.mass + right.mass;
         node.comX = (left.mass * left.comX + right.mass * right.comX) / totalMass;
         node.comY = (left.mass * left.comY + right.mass * right.comY) / totalMass;
         node.comZ = (left.mass * left.comZ + right.mass * right.comZ) / totalMass;
         node.mass = totalMass;
 
-        // write result
         nodeData[nodeIdx] = node;
 
-        // walk up
         nodeIdx = bvh.parent[nodeIdx];
     }
 }

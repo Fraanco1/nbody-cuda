@@ -1,34 +1,27 @@
-// Generates a Morton code for a given 3D point.
+// Morton-code computation, per the NVIDIA blog series:
 // https://developer.nvidia.com/blog/thinking-parallel-part-iii-tree-construction-gpu/
-
-// Expands a 10-bit integer into 30 bits
-// by inserting 2 zeros after each bit.
 
 #include "morton.cuh"
 
-__device__ unsigned int expandBits(unsigned int v)
-{
+__device__ unsigned int expandBits(unsigned int v) {
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
     v = (v * 0x00000011u) & 0xC30C30C3u;
     v = (v * 0x00000005u) & 0x49249249u;
     return v;
-};
+}
 
-// Calculates a 30-bit Morton code for the
-// given 3D point located within the unit cube [0,1].
-__global__ void morton3D(Vec3 *point, unsigned int *mortonCode, int n)
-{
+__global__ void morton3D(Vec3* points, unsigned int* mortonCodes, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
-    float x = point[i].x;
-    float y = point[i].y;
-    float z = point[i].z;
-    x = min(max(x * 1024.0f, 0.0f), 1023.0f);
-    y = min(max(y * 1024.0f, 0.0f), 1023.0f);
-    z = min(max(z * 1024.0f, 0.0f), 1023.0f);
+
+    float x = fminf(fmaxf(points[i].x * 1024.0f, 0.0f), 1023.0f);
+    float y = fminf(fmaxf(points[i].y * 1024.0f, 0.0f), 1023.0f);
+    float z = fminf(fmaxf(points[i].z * 1024.0f, 0.0f), 1023.0f);
+
     unsigned int xx = expandBits((unsigned int)x);
     unsigned int yy = expandBits((unsigned int)y);
     unsigned int zz = expandBits((unsigned int)z);
-    mortonCode[i] = xx * 4 + yy * 2 + zz;
+
+    mortonCodes[i] = xx * 4 + yy * 2 + zz;
 }
