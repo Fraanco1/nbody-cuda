@@ -62,7 +62,7 @@ static void sampleInUnitBall(float& x, float& y, float& z) {
 }
 
 int main() {
-    const int   n     = 1024;
+    const int   n     = 64;
     const float R     = 0.15f;          // initial cluster radius
     const float cx    = 0.5f;
     const float cy    = 0.5f;
