@@ -33,7 +33,7 @@ static Vec3 directForce(const Vec3* pos, const float* mass, int n,
 
 int main() {
     const int   n     = 16;
-    const float theta = 0.5f;
+    const float theta = 0.1f;
     const float eps   = 0.01f;
 
     // ── Host setup: random positions in [0,1]^3, uniform masses ─────────
