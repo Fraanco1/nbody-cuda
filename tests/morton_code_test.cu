@@ -17,8 +17,10 @@ int main() {
     // ── Device data ──────────────────────────────────────────────────────
     Vec3*  d_positions;
     float* d_masses;
+    Vec3 *d_accelerations;
     cudaMalloc(&d_positions, n * sizeof(Vec3));
     cudaMalloc(&d_masses,    n * sizeof(float));
+    cudaMalloc(&d_accelerations, n * sizeof(Vec3));
     cudaMemcpy(d_positions, h_points, n * sizeof(Vec3), cudaMemcpyHostToDevice);
     thrust::fill(thrust::device_ptr<float>(d_masses),
                  thrust::device_ptr<float>(d_masses) + n, 1.0f);
@@ -27,6 +29,26 @@ int main() {
     Tree tree(n);
     tree.rebuild(d_positions, d_masses);
     cudaDeviceSynchronize();
+
+    // Acceleration calculation 
+    const int threads = 256;
+    const int nBlocks    = (n_     + threads - 1) / threads;
+
+    computeForces<<<nBlocks, threads>>>(tree.nodeData(), tree.arrays(),
+                                        d_positions, d_accelerations, n);
+    cudaDeviceSynchronize();
+
+    // ── Verify a few accelerations ─────────────────────────────────────────
+    Vec3 h_accelerations[5];
+    cudaMemcpy(h_accelerations, d_accelerations, 5 * sizeof(Vec3),
+               cudaMemcpyDeviceToHost);
+    std::cout << "\n=== Accelerations for first 5 bodies ===\n";
+    for (int i = 0; i < 5; i++) {
+        std::cout << "Body " << i
+                  << " | ax=" << h_accelerations[i].x
+                  << " | ay=" << h_accelerations[i].y  
+                  << " | az=" << h_accelerations[i].z << "\n";
+    }
 
     // ── Verify root ──────────────────────────────────────────────────────
     NodeData h_root;
@@ -69,6 +91,7 @@ int main() {
     // ── Cleanup ──────────────────────────────────────────────────────────
     cudaFree(d_positions);
     cudaFree(d_masses);
+    cudaFree(d_accelerations);
     free(h_points);
     // tree's destructor frees its own buffers
     return 0;

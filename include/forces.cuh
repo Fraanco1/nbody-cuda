@@ -1,5 +1,4 @@
 #include <math.h>
-#include "bvh.cuh"
 
 __global__ void computeForces(NodeData *nodeData,
                               BVHArrays bvh,
