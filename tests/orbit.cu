@@ -88,9 +88,11 @@ int main() {
         halfKick  <<<blocks, threads>>>(d_vel, d_acc, dt, n);
 
         // Output every 10 steps to keep CSV manageable
-        if (step % 10 == 0) {
+        if (step % 1 == 0) {
             Vec3 pos[2];
             cudaMemcpy(pos, d_pos, 2 * sizeof(Vec3), cudaMemcpyDeviceToHost);
+            cudaMemcpy(vel, d_vel, 2 * sizeof(Vec3), cudaMemcpyDeviceToHost);
+            cudaMemcpy(acc, d_acc, 2 * sizeof(Vec3), cudaMemcpyDeviceToHost);
 
             float cx = 0.5f * (pos[0].x + pos[1].x);
             float cy = 0.5f * (pos[0].y + pos[1].y);
@@ -100,10 +102,10 @@ int main() {
             float dz = pos[1].z - pos[0].z;
             float sep = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-            std::cout << step << "," << (step * dt) << ","
-                      << pos[0].x << "," << pos[0].y << "," << pos[0].z << ","
-                      << pos[1].x << "," << pos[1].y << "," << pos[1].z << ","
-                      << cx << "," << cy << "," << cz << "," << sep << "\n";
+            std::cerr << "step " << step
+              << " | pos0=(" << pos[0].x << "," << pos[0].y << "," << pos[0].z << ")"
+              << " | vel0=(" << vel[0].x << "," << vel[0].y << "," << vel[0].z << ")"
+              << " | acc0=(" << acc[0].x << "," << acc[0].y << "," << acc[0].z << ")\n";
         }
     }
 
