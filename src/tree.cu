@@ -127,7 +127,7 @@ Tree::~Tree() {
     cudaFree(flags_);
 }
 
-void Tree::rebuild(Vec3* positions, float* masses) {
+void Tree::rebuild(Vec3* positions, Vec3* velocities, float* masses) {
     const int threads = 256;
     const int nBlocks    = (n_     + threads - 1) / threads;
     const int treeBlocks = (n_ - 1 + threads - 1) / threads;
@@ -140,13 +140,15 @@ void Tree::rebuild(Vec3* positions, float* masses) {
     // 1. Morton codes from current positions.
     morton3D<<<nBlocks, threads>>>(positions, mortonCodes_, n_);
 
-    // 2. Sort positions and masses by Morton code (key-value sort, twice).
-    //    Sorting the keys alongside two value arrays this way is standard Thrust.
+    // 2. Sort positions, velocities, and masses by Morton code.
+    //    All per-body arrays must stay in lockstep, or velocities will
+    //    become mismatched with the accelerations the force kernel computes.
     thrust::device_ptr<unsigned int> keys(mortonCodes_);
     thrust::device_ptr<Vec3>         pos(positions);
+    thrust::device_ptr<Vec3>         vel(velocities);
     thrust::device_ptr<float>        mas(masses);
     thrust::sort_by_key(keys, keys + n_,
-                        thrust::make_zip_iterator(thrust::make_tuple(pos, mas)));
+                        thrust::make_zip_iterator(thrust::make_tuple(pos, vel, mas)));
 
     // 3. Build the binary radix tree from sorted codes.
     buildTree<<<treeBlocks, threads>>>(mortonCodes_, arrays_);

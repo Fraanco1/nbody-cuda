@@ -47,9 +47,12 @@ public:
 
     // Build (or rebuild) the tree from current body positions and masses.
     // Positions must already be normalized into [0,1]^3 by the caller.
-    // Body order in `positions` / `masses` is permuted by Morton sorting,
-    // so after this call, the caller's arrays reflect the sorted order.
-    void rebuild(Vec3* positions, float* masses);
+    //
+    // All three input arrays (positions, velocities, masses) are permuted
+    // together by Morton sorting, so they stay synchronized: after this call,
+    // positions[i], velocities[i], masses[i] still refer to the same body
+    // (just possibly under a different index than before).
+    void rebuild(Vec3* positions, Vec3* velocities, float* masses);
 
     // Accessors for use by force kernels and inspection code.
     BVHArrays arrays()   const { return arrays_; }

@@ -57,7 +57,7 @@ int main() {
 
     // ── Initial force computation (needed before the first kick) ────────
     Tree tree(n);
-    tree.rebuild(d_pos, d_mass);
+    tree.rebuild(d_pos, d_vel, d_mass);
     computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
                                        d_pos, d_acc, n, theta, eps);
 
@@ -81,7 +81,7 @@ int main() {
         halfKick  <<<blocks, threads>>>(d_vel, d_acc, dt, n);
         fullDrift <<<blocks, threads>>>(d_pos, d_vel, dt, n);
 
-        tree.rebuild(d_pos, d_mass);
+        tree.rebuild(d_pos, d_vel, d_mass);
         computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
                                            d_pos, d_acc, n, theta, eps);
 
