@@ -8,7 +8,7 @@ __global__ void computeForces(NodeData *nodeData,
                               float theta,
                               float eps)
 {
-    int i = blockIdx.x * blockDIm.x + threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
 
     Vec3 myPos = positions[i];
