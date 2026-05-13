@@ -21,7 +21,7 @@ int main() {
     const float v     = 1.0f / (2.0f * std::sqrt(r));        // ≈ 1.581
     const float T     = 2.0f * 3.14159265f * r / v;          // ≈ 0.397
     const float dt    = 0.001f;
-    const int   steps = 5;                                    // diagnostic run
+    const int   steps = 4000;                                    // diagnostic run
     const float theta = 0.5f;
     const float eps   = 1e-4f;
 
