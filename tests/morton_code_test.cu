@@ -2,6 +2,7 @@
 #include <thrust/fill.h>
 #include <thrust/device_ptr.h>
 #include "tree.cuh"
+#include "forces.cuh"
 
 int main() {
     const int n = 1024;
