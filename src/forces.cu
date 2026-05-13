@@ -38,9 +38,9 @@ __global__ void computeForces(NodeData *nodeData,
             float invDist = rsqrtf(d2 + eps*eps);
             float invDist3 = invDist * invDist * invDist;
             float f = node.mass * invDist3;
-            ax += f * dx;
-            ay += f * dy;
-            az += f * dz;
+            ax -= f * dx;
+            ay -= f * dy;
+            az -= f * dz;
         }
         else {
             stack[sp++] = bvh.left[nodeIdx];
