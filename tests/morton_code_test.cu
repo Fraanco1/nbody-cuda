@@ -32,9 +32,9 @@ int main() {
 
     // Acceleration calculation 
     const int threads = 256;
-    const int nBlocks    = (n_     + threads - 1) / threads;
+    const int blocks  = (tree.n() + threads - 1) / threads;
 
-    computeForces<<<nBlocks, threads>>>(tree.nodeData(), tree.arrays(),
+    computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
                                         d_positions, d_accelerations, n);
     cudaDeviceSynchronize();
 
