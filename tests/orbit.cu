@@ -37,6 +37,10 @@ int main() {
         {0.0f,  v, 0.0f},
         {0.0f, -v, 0.0f}
     };
+    Vec3 h_acc[2] = {
+        {0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f}
+    };
     float h_mass[2] = {m, m};
 
     // ── Device buffers ──────────────────────────────────────────────────
@@ -50,6 +54,7 @@ int main() {
     cudaMalloc(&d_mass, n * sizeof(float));
     cudaMemcpy(d_pos,  h_pos,  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
     cudaMemcpy(d_vel,  h_vel,  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
+    cudaMemcpy(d_acc,  h_acc,  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
     cudaMemcpy(d_mass, h_mass, n * sizeof(float), cudaMemcpyHostToDevice);
 
     const int threads = 256;
