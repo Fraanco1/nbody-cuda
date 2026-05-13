@@ -36,7 +36,7 @@ int main() {
     const int blocks  = (tree.n() + threads - 1) / threads;
 
     computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
-                                        d_positions, d_accelerations, n);
+                                        d_positions, d_accelerations, n, 0.5f, 0.001f);
     cudaDeviceSynchronize();
 
     // ── Verify a few accelerations ─────────────────────────────────────────
