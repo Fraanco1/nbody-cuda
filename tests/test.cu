@@ -9,17 +9,23 @@ int main() {
 
     // ── Host data: bodies arranged on the diagonal of [0,1]^3 ────────────
     Vec3* h_points = (Vec3*)malloc(n * sizeof(Vec3));
+    Vec3 *h_velocities = (Vec3*)malloc(n * sizeof(Vec3));
     for (int i = 0; i < n; i++) {
         h_points[i].x = (float)i / n;
         h_points[i].y = (float)i / n;
         h_points[i].z = (float)i / n;
+        h_velocities[i].x = 0.0f;
+        h_velocities[i].y = 0.0f;
+        h_velocities[i].z = 0.0f;
     }
 
     // ── Device data ──────────────────────────────────────────────────────
     Vec3*  d_positions;
+    Vec3*  d_velocities;
     float* d_masses;
     Vec3 *d_accelerations;
     cudaMalloc(&d_positions, n * sizeof(Vec3));
+    cudaMalloc(&d_velocities, n * sizeof(Vec3));
     cudaMalloc(&d_masses,    n * sizeof(float));
     cudaMalloc(&d_accelerations, n * sizeof(Vec3));
     cudaMemcpy(d_positions, h_points, n * sizeof(Vec3), cudaMemcpyHostToDevice);

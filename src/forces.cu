@@ -52,3 +52,21 @@ __global__ void computeForces(NodeData *nodeData,
     accelerations[i].y = ay;
     accelerations[i].z = az;
 } 
+
+__global__ void halfKick(Vec3 *velocities, Vec3 *accelerations, float dt, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= n) return;
+
+    velocities[i].x += accelerations[i].x * dt * 0.5f;
+    velocities[i].y += accelerations[i].y * dt * 0.5f;
+    velocities[i].z += accelerations[i].z * dt * 0.5f;
+}
+
+__global__ void fullDrift(Vec3 *positions, Vec3 *velocities, float dt, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= n) return;
+
+    positions[i].x += velocities[i].x * dt;
+    positions[i].y += velocities[i].y * dt;
+    positions[i].z += velocities[i].z * dt;
+}
