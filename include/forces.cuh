@@ -1,5 +1,4 @@
 #include <math.h>
-#include "bvh.cuh"
 #include "tree.cuh"
 
 __global__ void computeForces(NodeData *nodeData,
