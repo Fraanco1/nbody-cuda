@@ -40,7 +40,7 @@ __global__ void computeForces(NodeData *nodeData,
             float f = node.mass * invDist3;
             ax += f * dx;
             ay += f * dy;
-            az = f * dz;
+            az += f * dz;
         }
         else {
             stack[sp++] = bvh.left[nodeIdx];
