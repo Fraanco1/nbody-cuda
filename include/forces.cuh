@@ -8,3 +8,7 @@ __global__ void computeForces(NodeData* nodeData,
                               int       n,
                               float     theta,
                               float     eps);
+
+__global__ void halfKick(Vec3 *velocities, Vec3 *accelerations, float dt, int n);
+
+__global__ void fullDrift(Vec3 *positions, Vec3 *velocities, float dt, int n);
