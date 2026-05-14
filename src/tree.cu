@@ -1,7 +1,32 @@
 #include "tree.cuh"
 
+#include <cfloat>
 #include <thrust/sort.h>
 #include <thrust/device_ptr.h>
+#include <thrust/transform_reduce.h>
+
+// ── AABB reduction helpers ────────────────────────────────────────────────────
+
+struct Box {
+    float x0, y0, z0, x1, y1, z1;
+};
+
+struct Vec3ToBox {
+    __host__ __device__
+    Box operator()(const Vec3& v) const {
+        return { v.x, v.y, v.z, v.x, v.y, v.z };
+    }
+};
+
+struct BoxUnion {
+    __host__ __device__
+    Box operator()(const Box& a, const Box& b) const {
+        return {
+            fminf(a.x0, b.x0), fminf(a.y0, b.y0), fminf(a.z0, b.z0),
+            fmaxf(a.x1, b.x1), fmaxf(a.y1, b.y1), fmaxf(a.z1, b.z1)
+        };
+    }
+};
 
 // ── Karras buildTree helpers (private to this translation unit) ──────────
 
@@ -142,7 +167,16 @@ void Tree::rebuild(Vec3* positions, Vec3* velocities, float* masses) {
     cudaMemset(flags_,              0, (n_ - 1) * sizeof(int));
 
     // 1. Morton codes from current positions.
-    morton3D<<<nBlocks, threads>>>(positions, mortonCodes_, n_);
+    // Compute AABB so positions can live anywhere outside [0,1]^3.
+    thrust::device_ptr<Vec3> pos_ptr(positions);
+    Box identity = { FLT_MAX, FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX };
+    Box aabb = thrust::transform_reduce(pos_ptr, pos_ptr + n_,
+                                        Vec3ToBox(), identity, BoxUnion());
+    float extent = fmaxf(aabb.x1 - aabb.x0,
+                   fmaxf(aabb.y1 - aabb.y0, aabb.z1 - aabb.z0));
+    float invExtent = (extent > 0.0f) ? 1.0f / extent : 1.0f;
+    morton3D<<<nBlocks, threads>>>(positions, mortonCodes_, n_,
+                                   aabb.x0, aabb.y0, aabb.z0, invExtent);
 
     // 2. Sort positions, velocities, and masses by Morton code.
     //    All per-body arrays must stay in lockstep, or velocities will
