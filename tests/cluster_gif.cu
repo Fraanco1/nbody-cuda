@@ -42,10 +42,12 @@ struct Canvas {
         rgba[idx + 3] = 255;
     }
 
-    // Small filled square at (x, y) ∈ [0,1]^2
-    void plotBody(float x, float y, uint8_t r, uint8_t g, uint8_t b, int radius = 1) {
-        int px = (int)(x * w);
-        int py = (h - 1) - (int)(y * h);
+    // Small filled square at world position (x, y).
+    // vMin/vRange define the visible world-space window: [vMin, vMin+vRange]^2.
+    void plotBody(float x, float y, float vMin, float vRange,
+                  uint8_t r, uint8_t g, uint8_t b, int radius = 1) {
+        int px = (int)((x - vMin) / vRange * w);
+        int py = (h - 1) - (int)((y - vMin) / vRange * h);
         for (int dy = -radius; dy <= radius; dy++)
             for (int dx = -radius; dx <= radius; dx++)
                 setPixel(px + dx, py + dy, r, g, b);
@@ -76,6 +78,8 @@ int main() {
     const int   imgSize       = 600;
     const int   stepsPerFrame = 10;     // 200 frames
     const int   gifDelayCs    = 3;      // ~33 fps
+    const float viewMin       = 0.5f - 5.0f;   // 10x the original [0,1] window,
+    const float viewRange     = 10.0f;          //   centered at (0.5, 0.5)
 
     // ── Initial conditions on host ──────────────────────────────────────
     std::srand(42);
@@ -136,7 +140,7 @@ int main() {
 
             frame.clear();
             for (int i = 0; i < n; i++)
-                frame.plotBody(hostPos[i].x, hostPos[i].y, 255, 255, 255, 1);
+                frame.plotBody(hostPos[i].x, hostPos[i].y, viewMin, viewRange, 255, 255, 255, 1);
 
             GifWriteFrame(&gif, frame.rgba.data(), imgSize, imgSize, gifDelayCs);
             frameCount++;
