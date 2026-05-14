@@ -10,12 +10,16 @@ __device__ __forceinline__ int safeClz(unsigned int x) {
 }
 
 __device__ __forceinline__ int sign(int x) {
-    return x > 0 ? 1 : -1;
+    return x >= 0 ? 1 : -1;
 }
 
+// Extended delta: when Morton codes are equal, break ties by body index.
+// This guarantees unique keys so buildTree never produces degenerate ranges.
 __device__ __forceinline__ int delta(unsigned int* mortons, int i, int j, int n) {
     if (j < 0 || j >= n) return -1;
-    return safeClz(mortons[i] ^ mortons[j]);
+    if (mortons[i] != mortons[j])
+        return safeClz(mortons[i] ^ mortons[j]);
+    return 32 + safeClz((unsigned int)(i ^ j));
 }
 
 __device__ int findSplit(unsigned int* sortedMortonCodes, int first, int last) {
