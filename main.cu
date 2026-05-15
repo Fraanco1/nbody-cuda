@@ -15,10 +15,10 @@
 
 int main(int argc, char* argv[]) {
     // ── Simulation parameters ───────────────────────────────────────────
-    float dt            = 0.001f;
+    float dt            = 0.0005f;
     int   steps         = 2000;
     float theta         = 0.5f;
-    float eps           = 0.05f;
+    float eps           = 0.1f;
     int   stepsPerFrame = 5;
     float focal         = 600.0f;
     std::string ic_file = "";
