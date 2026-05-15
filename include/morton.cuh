@@ -5,6 +5,10 @@ struct Vec3 {
     float x, y, z;
 };
 
+struct Vec2 {
+    float x, y;
+};
+
 // Expand a 10-bit integer into 30 bits by inserting two zero bits after each.
 __device__ unsigned int expandBits(unsigned int v);
 

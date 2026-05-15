@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "CUDA (local IntelliSense)",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/opencv4",
+                "/usr/local/include/opencv4",
+                "/usr/include"
+            ],
+            "defines": [
+                "__CUDACC__",
+                "__device__=",
+                "__global__=",
+                "__host__=",
+                "__shared__=",
+                "__constant__=",
+                "__forceinline__=inline",
+                "__restrict__="
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
