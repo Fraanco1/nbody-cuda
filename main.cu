@@ -71,13 +71,14 @@ int main(int argc, char* argv[]) {
 
     // ── Device buffers ──────────────────────────────────────────────────
     Vec3  *d_pos, *d_vel, *d_acc;
-    float *d_mass;
+    float *d_mass, *d_accSum;
     Vec2  *d_proj;
-    cudaMalloc(&d_pos,  n * sizeof(Vec3));
-    cudaMalloc(&d_vel,  n * sizeof(Vec3));
-    cudaMalloc(&d_acc,  n * sizeof(Vec3));
-    cudaMalloc(&d_mass, n * sizeof(float));
-    cudaMalloc(&d_proj, n * sizeof(Vec2));
+    cudaMalloc(&d_pos,    n * sizeof(Vec3));
+    cudaMalloc(&d_vel,    n * sizeof(Vec3));
+    cudaMalloc(&d_acc,    n * sizeof(Vec3));
+    cudaMalloc(&d_mass,   n * sizeof(float));
+    cudaMalloc(&d_proj,   n * sizeof(Vec2));
+    cudaMalloc(&d_accSum, 3 * sizeof(float));
 
     cudaMemcpy(d_pos,  h_pos.data(),  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
     cudaMemcpy(d_vel,  h_vel.data(),  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
@@ -86,6 +87,14 @@ int main(int argc, char* argv[]) {
 
     const int threads = 256;
     const int blocks  = (n + threads - 1) / threads;
+
+    // Subtract the mean acceleration from all bodies to cancel the net momentum
+    // error introduced by the Barnes-Hut approximation each step.
+    auto removeDrift = [&]() {
+        cudaMemset(d_accSum, 0, 3 * sizeof(float));
+        accumulateAcc<<<blocks, threads, 3 * threads * sizeof(float)>>>(d_acc, d_accSum, n);
+        subtractMeanAcc<<<blocks, threads>>>(d_acc, d_accSum, n);
+    };
 
     // ── Video writer ────────────────────────────────────────────────────
     cv::VideoWriter writer(
@@ -105,6 +114,7 @@ int main(int argc, char* argv[]) {
     tree.rebuild(d_pos, d_vel, d_mass);
     computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
                                        d_pos, d_acc, n, theta, eps);
+    removeDrift();
 
     // ── Main loop ───────────────────────────────────────────────────────
     for (int step = 0; step < steps; step++) {
@@ -114,6 +124,7 @@ int main(int argc, char* argv[]) {
         tree.rebuild(d_pos, d_vel, d_mass);
         computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
                                            d_pos, d_acc, n, theta, eps);
+        removeDrift();
 
         halfKick  <<<blocks, threads>>>(d_vel, d_acc, dt, n);
 
@@ -148,5 +159,6 @@ int main(int argc, char* argv[]) {
     cudaFree(d_acc);
     cudaFree(d_mass);
     cudaFree(d_proj);
+    cudaFree(d_accSum);
     return 0;
 }

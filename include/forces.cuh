@@ -9,6 +9,9 @@ __global__ void computeForces(NodeData* nodeData,
                               float     theta,
                               float     eps);
 
+__global__ void accumulateAcc(Vec3* acc, float* sum, int n);
+__global__ void subtractMeanAcc(Vec3* acc, float* sum, int n);
+
 __global__ void halfKick(Vec3 *velocities, Vec3 *accelerations, float dt, int n);
 
 __global__ void fullDrift(Vec3 *positions, Vec3 *velocities, float dt, int n);

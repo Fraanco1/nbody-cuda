@@ -53,6 +53,34 @@ __global__ void computeForces(NodeData *nodeData,
     accelerations[i].z = az;
 } 
 
+// Shared-memory reduction + atomicAdd to accumulate the sum of all accelerations.
+// Call with shared memory size = 3 * blockDim.x * sizeof(float).
+__global__ void accumulateAcc(Vec3* acc, float* sum, int n) {
+    extern __shared__ float sdata[];
+    float* sdX = sdata;
+    float* sdY = sdata +     blockDim.x;
+    float* sdZ = sdata + 2 * blockDim.x;
+    int tid = threadIdx.x;
+    int i   = blockIdx.x * blockDim.x + tid;
+    sdX[tid] = (i < n) ? acc[i].x : 0.f;
+    sdY[tid] = (i < n) ? acc[i].y : 0.f;
+    sdZ[tid] = (i < n) ? acc[i].z : 0.f;
+    __syncthreads();
+    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) { sdX[tid] += sdX[tid+s]; sdY[tid] += sdY[tid+s]; sdZ[tid] += sdZ[tid+s]; }
+        __syncthreads();
+    }
+    if (tid == 0) { atomicAdd(&sum[0], sdX[0]); atomicAdd(&sum[1], sdY[0]); atomicAdd(&sum[2], sdZ[0]); }
+}
+
+__global__ void subtractMeanAcc(Vec3* acc, float* sum, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    acc[i].x -= sum[0] / n;
+    acc[i].y -= sum[1] / n;
+    acc[i].z -= sum[2] / n;
+}
+
 __global__ void halfKick(Vec3 *velocities, Vec3 *accelerations, float dt, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
