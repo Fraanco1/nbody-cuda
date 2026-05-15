@@ -31,12 +31,12 @@ int main(int argc, char* argv[]) {
     const float dt            = 0.001f;
     const int   steps         = 2000;
     const float theta         = 0.5f;
-    const float eps           = 0.005f;
+    const float eps           = 0.05f;
     const int   stepsPerFrame = 5;
 
     // ── Camera / image parameters ───────────────────────────────────────
-    const int   W      = 800;
-    const int   H      = 800;
+    const int   W      = 1024;
+    const int   H      = 1024;
     const float focal  = 600.0f;       // pixels; trades FOV vs. zoom
     Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };   // above and behind the cluster
     Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };  // looking toward -Z
