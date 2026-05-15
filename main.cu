@@ -52,11 +52,11 @@ int main(int argc, char* argv[]) {
     const int   W      = 1024;
     const int   H      = 1024;
     const float focal  = 600.0f;       // pixels; trades FOV vs. zoom
-    Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };   // above and behind the cluster
+    Vec3 cam_pos     = { 0.5f,  0.5f, 5f };   // above and behind the cluster
     Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };  // looking toward -Z
     Vec3 cam_up      = { 0.0f,  1.0f,  0.0f };
-    const float cx   = W / 0.01f;
-    const float cy   = H / 0.01f;
+    const float cx   = W / 2.0f;
+    const float cy   = H / 2.0f;
 
     // ── Initial conditions on host ──────────────────────────────────────
     std::srand(42);
