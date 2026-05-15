@@ -21,7 +21,6 @@ import argparse
 import struct
 import random
 
-
 def sample_in_unit_ball(rng: random.Random):
     while True:
         x = 2.0 * rng.random() - 1.0
