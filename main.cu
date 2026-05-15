@@ -1,74 +1,75 @@
-// 1024-body gravitational cluster rendered with a pinhole camera via OpenCV.
+// N-body gravitational cluster rendered with a pinhole camera via OpenCV.
 //
-// Cold collapse: uniform random positions inside a sphere of radius R
-// centered at (0.5, 0.5, 0.5), zero initial velocity. The cluster collapses,
-// bounces, and re-expands.
+// Initial conditions are read from a binary file produced by generate_ic.py.
+// File format: [int32 n] [n * 7 * float32: x y z vx vy vz mass]
 //
 // Output: cluster.mp4
 
+#include <cstdio>
 #include <iostream>
 #include <vector>
-#include <cmath>
-#include <cstdlib>
 #include <opencv2/opencv.hpp>
 #include "tree.cuh"
 #include "forces.cuh"
 #include "graphic.cuh"
 
-static void sampleInUnitBall(float& x, float& y, float& z) {
-    do {
-        x = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-        y = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-        z = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-    } while (x*x + y*y + z*z > 1.0f);
-}
-
 int main(int argc, char* argv[]) {
     // ── Simulation parameters ───────────────────────────────────────────
-    int   n             = 10000;
-    float R             = 0.3f;
     float dt            = 0.001f;
     int   steps         = 2000;
     float theta         = 0.5f;
     float eps           = 0.05f;
     int   stepsPerFrame = 5;
     float focal         = 600.0f;
+    std::string ic_file = "";
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if (i + 1 >= argc) { std::cerr << "Missing value for " << arg << "\n"; return 1; }
-        if      (arg == "--n")             n             = std::atoi(argv[++i]);
-        else if (arg == "--R")             R             = std::atof(argv[++i]);
-        else if (arg == "--dt")            dt            = std::atof(argv[++i]);
+        if      (arg == "--dt")            dt            = std::atof(argv[++i]);
         else if (arg == "--steps")         steps         = std::atoi(argv[++i]);
         else if (arg == "--theta")         theta         = std::atof(argv[++i]);
         else if (arg == "--eps")           eps           = std::atof(argv[++i]);
         else if (arg == "--stepsPerFrame") stepsPerFrame = std::atoi(argv[++i]);
         else if (arg == "--focal")         focal         = std::atof(argv[++i]);
+        else if (arg == "--ic")            ic_file       = argv[++i];
         else { std::cerr << "Unknown argument: " << arg << "\n"; return 1; }
     }
 
-    const float m = 1.0f / n;
+    if (ic_file.empty()) {
+        std::cerr << "Usage: " << argv[0] << " --ic <file> [options]\n"
+                  << "  Generate IC file with: python generate_ic.py\n";
+        return 1;
+    }
+
+    // ── Load initial conditions ─────────────────────────────────────────
+    FILE* f = std::fopen(ic_file.c_str(), "rb");
+    if (!f) { std::cerr << "Cannot open IC file: " << ic_file << "\n"; return 1; }
+
+    int n = 0;
+    std::fread(&n, sizeof(int), 1, f);
+
+    std::vector<Vec3>  h_pos(n);
+    std::vector<Vec3>  h_vel(n);
+    std::vector<float> h_mass(n);
+
+    for (int i = 0; i < n; i++) {
+        float buf[7];
+        std::fread(buf, sizeof(float), 7, f);
+        h_pos[i]  = { buf[0], buf[1], buf[2] };
+        h_vel[i]  = { buf[3], buf[4], buf[5] };
+        h_mass[i] = buf[6];
+    }
+    std::fclose(f);
 
     // ── Camera / image parameters ───────────────────────────────────────
     const int   W      = 1024;
     const int   H      = 1024;
-    Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };   // above and behind the cluster
-    Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };  // looking toward -Z
+    Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };
+    Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };
     Vec3 cam_up      = { 0.0f,  1.0f,  0.0f };
     const float cx   = W / 2.0f;
     const float cy   = H / 2.0f;
-
-    // ── Initial conditions on host ──────────────────────────────────────
-    std::srand(42);
-    std::vector<Vec3>  h_pos(n);
-    std::vector<Vec3>  h_vel(n, {0.0f, 0.0f, 0.0f});
-    std::vector<float> h_mass(n, m);
-    for (int i = 0; i < n; i++) {
-        float ux, uy, uz;
-        sampleInUnitBall(ux, uy, uz);
-        h_pos[i] = { 0.5f + R * ux, 0.5f + R * uy, 0.5f + R * uz };
-    }
 
     // ── Device buffers ──────────────────────────────────────────────────
     Vec3  *d_pos, *d_vel, *d_acc;
@@ -130,7 +131,6 @@ int main(int argc, char* argv[]) {
         halfKick  <<<blocks, threads>>>(d_vel, d_acc, dt, n);
 
         if (step % stepsPerFrame == 0) {
-            // Project 3D positions to 2D image plane on the GPU
             calculateProjection<<<blocks, threads>>>(
                 d_pos, d_proj, n,
                 cam_pos, cam_forward, cam_up,
@@ -139,7 +139,6 @@ int main(int argc, char* argv[]) {
             cudaMemcpy(h_proj.data(), d_proj, n * sizeof(Vec2),
                        cudaMemcpyDeviceToHost);
 
-            // Render: black background, white dot per body
             cv::Mat frame(H, W, CV_8UC3, cv::Scalar(0, 0, 0));
             for (int i = 0; i < n; i++) {
                 int px = static_cast<int>(h_proj[i].x);
