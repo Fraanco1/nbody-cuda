@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
     float theta         = 0.5f;
     float eps           = 0.05f;
     int   stepsPerFrame = 5;
+    float focal         = 600.0f;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -43,6 +44,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--theta")         theta         = std::atof(argv[++i]);
         else if (arg == "--eps")           eps           = std::atof(argv[++i]);
         else if (arg == "--stepsPerFrame") stepsPerFrame = std::atoi(argv[++i]);
+        else if (arg == "--focal")         focal         = std::atof(argv[++i]);
         else { std::cerr << "Unknown argument: " << arg << "\n"; return 1; }
     }
 
@@ -51,7 +53,6 @@ int main(int argc, char* argv[]) {
     // ── Camera / image parameters ───────────────────────────────────────
     const int   W      = 1024;
     const int   H      = 1024;
-    const float focal  = 600.0f;       // pixels; trades FOV vs. zoom
     Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };   // above and behind the cluster
     Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };  // looking toward -Z
     Vec3 cam_up      = { 0.0f,  1.0f,  0.0f };
