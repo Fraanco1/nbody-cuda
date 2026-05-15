@@ -119,7 +119,7 @@ int main() {
                 int px = static_cast<int>(h_proj[i].x);
                 int py = static_cast<int>(h_proj[i].y);
                 if (px >= 0 && px < W && py >= 0 && py < H)
-                    cv::circle(frame, cv::Point(px, py), 1,
+                    cv::circle(frame, cv::Point(px, py), 0,
                                cv::Scalar(255, 255, 255), -1);
             }
             writer.write(frame);
