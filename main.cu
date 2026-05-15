@@ -23,9 +23,9 @@ static void sampleInUnitBall(float& x, float& y, float& z) {
     } while (x*x + y*y + z*z > 1.0f);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     // ── Simulation parameters ───────────────────────────────────────────
-    const int   n             = 1024;
+    const int   n             = (argc > 1) ? std::atoi(argv[1]) : 10000;
     const float R             = 0.15f;
     const float m             = 1.0f / n;
     const float dt            = 0.001f;
