@@ -55,8 +55,8 @@ int main(int argc, char* argv[]) {
     Vec3 cam_pos     = { 0.5f,  0.5f, 2.5f };   // above and behind the cluster
     Vec3 cam_forward = { 0.0f,  0.0f, -1.0f };  // looking toward -Z
     Vec3 cam_up      = { 0.0f,  1.0f,  0.0f };
-    const float cx   = W / 10.0f;
-    const float cy   = H / 10.0f;
+    const float cx   = W / 0.01f;
+    const float cy   = H / 0.01f;
 
     // ── Initial conditions on host ──────────────────────────────────────
     std::srand(42);
