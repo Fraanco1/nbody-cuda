@@ -25,14 +25,28 @@ static void sampleInUnitBall(float& x, float& y, float& z) {
 
 int main(int argc, char* argv[]) {
     // ── Simulation parameters ───────────────────────────────────────────
-    const int   n             = (argc > 1) ? std::atoi(argv[1]) : 10000;
-    const float R             = 0.15f;
-    const float m             = 1.0f / n;
-    const float dt            = 0.001f;
-    const int   steps         = 2000;
-    const float theta         = 0.5f;
-    const float eps           = 0.05f;
-    const int   stepsPerFrame = 5;
+    int   n             = 10000;
+    float R             = 0.3f;
+    float dt            = 0.001f;
+    int   steps         = 2000;
+    float theta         = 0.5f;
+    float eps           = 0.05f;
+    int   stepsPerFrame = 5;
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (i + 1 >= argc) { std::cerr << "Missing value for " << arg << "\n"; return 1; }
+        if      (arg == "--n")             n             = std::atoi(argv[++i]);
+        else if (arg == "--R")             R             = std::atof(argv[++i]);
+        else if (arg == "--dt")            dt            = std::atof(argv[++i]);
+        else if (arg == "--steps")         steps         = std::atoi(argv[++i]);
+        else if (arg == "--theta")         theta         = std::atof(argv[++i]);
+        else if (arg == "--eps")           eps           = std::atof(argv[++i]);
+        else if (arg == "--stepsPerFrame") stepsPerFrame = std::atoi(argv[++i]);
+        else { std::cerr << "Unknown argument: " << arg << "\n"; return 1; }
+    }
+
+    const float m = 1.0f / n;
 
     // ── Camera / image parameters ───────────────────────────────────────
     const int   W      = 1024;
