@@ -7,7 +7,8 @@ __global__ void computeForces(NodeData *nodeData,
                               Vec3 *accelerations,
                               int n,
                               float theta,
-                              float eps)
+                              float eps,
+                              float G)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
@@ -37,7 +38,7 @@ __global__ void computeForces(NodeData *nodeData,
         if(isLeaf || s*s < theta*theta * d2) {
             float invDist = rsqrtf(d2 + eps*eps);
             float invDist3 = invDist * invDist * invDist;
-            float f = node.mass * invDist3;
+            float f = G * node.mass * invDist3;
             ax += f * dx;
             ay += f * dy;
             az += f * dz;

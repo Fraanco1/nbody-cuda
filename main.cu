@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
     int   steps         = 2000;
     float theta         = 0.5f;
     float eps           = 0.1f;
+    float G             = 1.0f;
     int   stepsPerFrame = 5;
     float focal         = 600.0f;
     std::string ic_file = "";
@@ -31,6 +32,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--theta")         theta         = std::atof(argv[++i]);
         else if (arg == "--eps")           eps           = std::atof(argv[++i]);
         else if (arg == "--stepsPerFrame") stepsPerFrame = std::atoi(argv[++i]);
+        else if (arg == "--G")             G             = std::atof(argv[++i]);
         else if (arg == "--focal")         focal         = std::atof(argv[++i]);
         else if (arg == "--ic")            ic_file       = argv[++i];
         else { std::cerr << "Unknown argument: " << arg << "\n"; return 1; }
@@ -118,7 +120,7 @@ int main(int argc, char* argv[]) {
     Tree tree(n);
     tree.rebuild(d_pos, d_vel, d_mass);
     computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
-                                       d_pos, d_acc, n, theta, eps);
+                                       d_pos, d_acc, n, theta, eps, G);
     removeDrift();
 
     // ── Main loop ───────────────────────────────────────────────────────

@@ -7,7 +7,8 @@ __global__ void computeForces(NodeData* nodeData,
                               Vec3*     accelerations,
                               int       n,
                               float     theta,
-                              float     eps);
+                              float     eps,
+                              float     G);
 
 __global__ void accumulateAcc(Vec3* acc, float* sum, int n);
 __global__ void subtractMeanAcc(Vec3* acc, float* sum, int n);
