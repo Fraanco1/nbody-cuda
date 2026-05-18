@@ -20,8 +20,8 @@ Usage:
 
 Disk notes:
   Positions are drawn with uniform surface density on the annulus [r_in, R].
-  Circular velocity follows the Keplerian profile v(r) = 1/sqrt(r)  (G=M=1),
-  appropriate when the enclosed mass grows as M(<r) ∝ r.
+  Circular velocity: v(r) = sqrt(M_enc(r)/r), where M_enc(r) = (r²-r_in²)/(R²-r_in²)
+  is the enclosed mass fraction assuming uniform surface density (G=M=1).
 """
 
 import argparse
@@ -84,7 +84,8 @@ def generate_disk(n, r_out, center, seed, r_in=0.05, thickness=0.05):
         x = cx + r * math.cos(phi)
         y = cy + r * math.sin(phi)
 
-        v_circ = 1.0 / math.sqrt(r)
+        m_enc  = (r*r - r_in*r_in) / (r_out*r_out - r_in*r_in)
+        v_circ = math.sqrt(m_enc / r)
         vx = -v_circ * math.sin(phi)
         vy =  v_circ * math.cos(phi)
 
