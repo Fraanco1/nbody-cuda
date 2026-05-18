@@ -59,8 +59,55 @@ def generate_uniform_cube(n, R, center, seed):
     return bodies
 
 
+def _disk_rotation_curve(R, eps, n_r=64, n_phi=128):
+    """
+    Numerically integrate the radial gravitational force of a uniform softened
+    disk (G=1, M_total=1) at n_r sample radii, returning (r_table, vcirc_table).
+
+    The shell theorem does not hold for a disk, so the rotation curve must be
+    computed by integrating over the full mass distribution instead of using
+    M_enclosed as a point mass.
+    """
+    sigma = 1.0 / (math.pi * R * R)
+    dr    = R / n_r
+    dphi  = 2.0 * math.pi / n_phi
+
+    r_tab = [(i + 0.5) * dr for i in range(n_r)]
+    v_tab = []
+
+    for r in r_tab:
+        F_r = 0.0
+        for j in range(n_r):
+            rp = (j + 0.5) * dr
+            for k in range(n_phi):
+                phi = (k + 0.5) * dphi
+                ex  = rp * math.cos(phi) - r
+                ey  = rp * math.sin(phi)
+                d2  = ex*ex + ey*ey + eps*eps
+                F_r += sigma * rp * ex / (d2 * math.sqrt(d2)) * dphi * dr
+        # F_r < 0 (inward); v_circ^2 = r * |F_r|
+        v_tab.append(math.sqrt(max(0.0, -r * F_r)))
+
+    return r_tab, v_tab
+
+
+def _interp(r_tab, v_tab, r):
+    if r <= r_tab[0]:
+        return v_tab[0] * r / r_tab[0]
+    if r >= r_tab[-1]:
+        return v_tab[-1]
+    for i in range(len(r_tab) - 1):
+        if r_tab[i] <= r < r_tab[i + 1]:
+            t = (r - r_tab[i]) / (r_tab[i + 1] - r_tab[i])
+            return v_tab[i] + t * (v_tab[i + 1] - v_tab[i])
+    return v_tab[-1]
+
+
 def generate_disk(n, R, center, seed, thickness=0.05, eps=0.1):
-    """Thin rotating disk in the x-y plane with softened circular velocities."""
+    """Thin rotating disk in the x-y plane with self-consistent circular velocities."""
+    print("Computing rotation curve...", flush=True)
+    r_tab, v_tab = _disk_rotation_curve(R, eps)
+
     rng = random.Random(seed)
     cx, cy, cz = center
     mass = 1.0 / n
@@ -73,9 +120,7 @@ def generate_disk(n, R, center, seed, thickness=0.05, eps=0.1):
         x = cx + r * math.cos(phi)
         y = cy + r * math.sin(phi)
 
-        # Softened circular speed: v^2 = M_enclosed * r^2 / (r^2 + eps^2)^(3/2)
-        # M_enclosed = (r/R)^2 for uniform surface density disk
-        v_circ = (r * r) / (R * (r*r + eps*eps) ** 0.75) if r > 0 else 0.0
+        v_circ = _interp(r_tab, v_tab, r)
         vx = -v_circ * math.sin(phi)
         vy =  v_circ * math.cos(phi)
 

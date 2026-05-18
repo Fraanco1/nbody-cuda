@@ -16,7 +16,7 @@ __global__ void computeForces(NodeData *nodeData,
     float ax = 0.0f, ay = 0.0f, az = 0.0f;
     int stack[64];
     int sp = 0;
-    stack[sp++] = 0; 
+    stack[sp++] = 0;
     
     while(sp > 0) {
         int nodeIdx = stack[--sp];
