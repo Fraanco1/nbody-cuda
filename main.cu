@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
 
         tree.rebuild(d_pos, d_vel, d_mass);
         computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
-                                           d_pos, d_acc, n, theta, eps);
+                                           d_pos, d_acc, n, theta, eps, G);
         removeDrift();
 
         halfKick  <<<blocks, threads>>>(d_vel, d_acc, dt, n);
