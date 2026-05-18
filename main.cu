@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
 
     // ── Device buffers ──────────────────────────────────────────────────
     Vec3  *d_pos, *d_vel, *d_acc;
-    float *d_mass, *d_accSum;
+    float *d_mass, *d_accSum, *d_comVel, *d_speeds;
     Vec2  *d_proj;
     cudaMalloc(&d_pos,    n * sizeof(Vec3));
     cudaMalloc(&d_vel,    n * sizeof(Vec3));
@@ -81,6 +81,8 @@ int main(int argc, char* argv[]) {
     cudaMalloc(&d_mass,   n * sizeof(float));
     cudaMalloc(&d_proj,   n * sizeof(Vec2));
     cudaMalloc(&d_accSum, 3 * sizeof(float));
+    cudaMalloc(&d_comVel, 3 * sizeof(float));
+    cudaMalloc(&d_speeds, n * sizeof(float));
 
     cudaMemcpy(d_pos,  h_pos.data(),  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
     cudaMemcpy(d_vel,  h_vel.data(),  n * sizeof(Vec3),  cudaMemcpyHostToDevice);
@@ -109,7 +111,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::vector<Vec2> h_proj(n);
+    std::vector<Vec2>  h_proj(n);
+    std::vector<float> h_speeds(n);
 
     // ── Initial force computation ───────────────────────────────────────
     Tree tree(n);
@@ -136,8 +139,29 @@ int main(int argc, char* argv[]) {
                 cam_pos, cam_forward, cam_up,
                 focal, cx, cy);
 
-            cudaMemcpy(h_proj.data(), d_proj, n * sizeof(Vec2),
-                       cudaMemcpyDeviceToHost);
+            // Compute per-body speed relative to CoM velocity.
+            // Total mass = 1, so sum(m_i * v_i) == v_com directly.
+            cudaMemset(d_comVel, 0, 3 * sizeof(float));
+            accumulateMomenta<<<blocks, threads, 3 * threads * sizeof(float)>>>(
+                d_vel, d_mass, d_comVel, n);
+            computeRelativeSpeeds<<<blocks, threads>>>(d_vel, d_comVel, d_speeds, n);
+
+            cudaMemcpy(h_proj.data(),   d_proj,   n * sizeof(Vec2),  cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_speeds.data(), d_speeds, n * sizeof(float), cudaMemcpyDeviceToHost);
+
+            // Normalize speeds to [0,1] and map to blue→cyan→green→yellow→red.
+            float maxSpeed = *std::max_element(h_speeds.begin(), h_speeds.end());
+            float invMax   = (maxSpeed > 0.f) ? 1.f / maxSpeed : 1.f;
+
+            auto heatmap = [](float t) -> cv::Scalar {
+                t = std::max(0.f, std::min(1.f, t));
+                float r, g, b;
+                if      (t < 0.25f) { r = 0;                    g = t / 0.25f;          b = 1; }
+                else if (t < 0.5f)  { r = 0;                    g = 1;                  b = 1 - (t - 0.25f) / 0.25f; }
+                else if (t < 0.75f) { r = (t - 0.5f)  / 0.25f; g = 1;                  b = 0; }
+                else                { r = 1;                    g = 1 - (t - 0.75f) / 0.25f; b = 0; }
+                return cv::Scalar(b * 255, g * 255, r * 255);  // OpenCV uses BGR
+            };
 
             cv::Mat frame(H, W, CV_8UC3, cv::Scalar(0, 0, 0));
             for (int i = 0; i < n; i++) {
@@ -145,7 +169,7 @@ int main(int argc, char* argv[]) {
                 int py = static_cast<int>(h_proj[i].y);
                 if (px >= 0 && px < W && py >= 0 && py < H)
                     cv::circle(frame, cv::Point(px, py), 0,
-                               cv::Scalar(255, 255, 255), -1);
+                               heatmap(h_speeds[i] * invMax), -1);
             }
             writer.write(frame);
         }
@@ -160,5 +184,7 @@ int main(int argc, char* argv[]) {
     cudaFree(d_mass);
     cudaFree(d_proj);
     cudaFree(d_accSum);
+    cudaFree(d_comVel);
+    cudaFree(d_speeds);
     return 0;
 }

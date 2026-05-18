@@ -16,6 +16,48 @@ __device__ static inline Vec3 normalize(Vec3 v) {
     return { v.x*inv, v.y*inv, v.z*inv };
 }
 
+__global__ void accumulateMomenta(
+    const Vec3  *velocities,
+    const float *masses,
+    float       *comVel,
+    int          n)
+{
+    extern __shared__ float sdata[];
+    float* sdX = sdata;
+    float* sdY = sdata +     blockDim.x;
+    float* sdZ = sdata + 2 * blockDim.x;
+    int tid = threadIdx.x;
+    int i   = blockIdx.x * blockDim.x + tid;
+    float m = (i < n) ? masses[i] : 0.f;
+    sdX[tid] = (i < n) ? m * velocities[i].x : 0.f;
+    sdY[tid] = (i < n) ? m * velocities[i].y : 0.f;
+    sdZ[tid] = (i < n) ? m * velocities[i].z : 0.f;
+    __syncthreads();
+    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) { sdX[tid] += sdX[tid+s]; sdY[tid] += sdY[tid+s]; sdZ[tid] += sdZ[tid+s]; }
+        __syncthreads();
+    }
+    if (tid == 0) {
+        atomicAdd(&comVel[0], sdX[0]);
+        atomicAdd(&comVel[1], sdY[0]);
+        atomicAdd(&comVel[2], sdZ[0]);
+    }
+}
+
+__global__ void computeRelativeSpeeds(
+    const Vec3  *velocities,
+    const float *comVel,
+    float       *speeds,
+    int          n)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float dvx = velocities[i].x - comVel[0];
+    float dvy = velocities[i].y - comVel[1];
+    float dvz = velocities[i].z - comVel[2];
+    speeds[i] = sqrtf(dvx*dvx + dvy*dvy + dvz*dvz);
+}
+
 __global__ void calculateProjection(
     const Vec3 *positions,
     Vec2       *projections,
