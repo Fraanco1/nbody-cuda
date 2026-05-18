@@ -14,14 +14,17 @@ Usage:
   -R          outer radius / half-side             (default: 0.5)
   --r-in      disk inner radius (annulus hole)     (default: 0.05)
   --cx/cy/cz  center                               (default: 0.5 0.5 0.5)
-  --thickness disk vertical thickness as fraction of (R - r_in)  (default: 0.05)
-  --seed      random seed                          (default: 42)
-  -o          output file                          (default: ic.bin)
+  --thickness  disk vertical thickness as fraction of (R - r_in)  (default: 0.05)
+  --halo-mass  Hernquist halo mass (G=1)                          (default: 5.0)
+  --halo-scale Hernquist halo scale radius                        (default: 0.2)
+  --seed       random seed                                        (default: 42)
+  -o           output file                                        (default: ic.bin)
 
 Disk notes:
   Positions are drawn with uniform surface density on the annulus [r_in, R].
-  Circular velocity: v(r) = sqrt(M_enc(r)/r), where M_enc(r) = (r²-r_in²)/(R²-r_in²)
-  is the enclosed mass fraction assuming uniform surface density (G=M=1).
+  Circular velocity: v(r) = sqrt(M_enc/r + M_h*r/(r+a)^2)
+    M_enc = (r²-r_in²)/(R²-r_in²)  (self-gravity, G=M_disk=1)
+    Hernquist halo term stabilises the disk against escape.
 """
 
 import argparse
@@ -63,12 +66,15 @@ def generate_uniform_cube(n, R, center, seed):
     return bodies
 
 
-def generate_disk(n, r_out, center, seed, r_in=0.05, thickness=0.05):
+def generate_disk(n, r_out, center, seed, r_in=0.05, thickness=0.05,
+                  halo_mass=5.0, halo_scale=0.2):
     """
-    Uniform annulus [r_in, r_out] with Keplerian circular velocities v = 1/sqrt(r).
+    Uniform annulus [r_in, r_out] with circular velocities from self-gravity +
+    a static Hernquist dark-matter halo.
 
-    Positions are drawn with uniform surface density (r = sqrt(r_in² + U·(r_out²-r_in²))).
-    v(r) = 1/sqrt(r) assumes G=M=1 with mass concentrated inside r_in.
+    v_circ(r) = sqrt(M_enc/r + M_h*r/(r+a)^2)
+      M_enc = (r²-r_in²)/(r_out²-r_in²)  (self-gravity, uniform surface density)
+      Hernquist halo: M_h, scale a  (G=1)
     """
     rng = random.Random(seed)
     cx, cy, cz = center
@@ -76,7 +82,6 @@ def generate_disk(n, r_out, center, seed, r_in=0.05, thickness=0.05):
     width = r_out - r_in
     bodies = []
     for _ in range(n):
-        # Uniform area sampling on annulus
         r   = math.sqrt(r_in*r_in + rng.random() * (r_out*r_out - r_in*r_in))
         phi = 2.0 * math.pi * rng.random()
         z   = rng.gauss(0.0, thickness * width)
@@ -84,8 +89,9 @@ def generate_disk(n, r_out, center, seed, r_in=0.05, thickness=0.05):
         x = cx + r * math.cos(phi)
         y = cy + r * math.sin(phi)
 
-        m_enc  = (r*r - r_in*r_in) / (r_out*r_out - r_in*r_in)
-        v_circ = math.sqrt(m_enc / r)
+        m_enc   = (r*r - r_in*r_in) / (r_out*r_out - r_in*r_in)
+        v_halo2 = halo_mass * r / (r + halo_scale)**2
+        v_circ  = math.sqrt(m_enc / r + v_halo2)
         vx = -v_circ * math.sin(phi)
         vy =  v_circ * math.cos(phi)
 
@@ -120,6 +126,10 @@ if __name__ == "__main__":
     p.add_argument("--cz",        type=float, default=0.5, help="center z")
     p.add_argument("--thickness", type=float, default=0.05,
                    help="disk vertical thickness as fraction of annulus width (default: 0.05)")
+    p.add_argument("--halo-mass",  type=float, default=5.0,
+                   help="Hernquist halo mass (default: 5.0)")
+    p.add_argument("--halo-scale", type=float, default=0.2,
+                   help="Hernquist halo scale radius (default: 0.2)")
     p.add_argument("--seed",      type=int,   default=42,  help="random seed")
     p.add_argument("-o",          type=str,   default="ic.bin", help="output file")
     args = p.parse_args()
@@ -133,6 +143,8 @@ if __name__ == "__main__":
     else:
         bodies = generate_disk(args.n, args.R, center, args.seed,
                                r_in=args.r_in,
-                               thickness=args.thickness)
+                               thickness=args.thickness,
+                               halo_mass=args.halo_mass,
+                               halo_scale=args.halo_scale)
 
     write_ic(args.o, bodies)

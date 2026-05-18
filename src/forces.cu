@@ -8,7 +8,10 @@ __global__ void computeForces(NodeData *nodeData,
                               int n,
                               float theta,
                               float eps,
-                              float G)
+                              float G,
+                              float haloMass,
+                              float haloScale,
+                              Vec3  haloCen)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
@@ -18,7 +21,7 @@ __global__ void computeForces(NodeData *nodeData,
     int stack[64];
     int sp = 0;
     stack[sp++] = 0;
-    
+
     while(sp > 0) {
         int nodeIdx = stack[--sp];
         NodeData node = nodeData[nodeIdx];
@@ -47,6 +50,18 @@ __global__ void computeForces(NodeData *nodeData,
             stack[sp++] = bvh.left[nodeIdx];
             stack[sp++] = bvh.right[nodeIdx];
         }
+    }
+
+    // Static Hernquist dark-matter halo: F_r = -G*M_h / (r*(r+a)^2)
+    if (haloMass > 0.0f) {
+        float hx = myPos.x - haloCen.x;
+        float hy = myPos.y - haloCen.y;
+        float hz = myPos.z - haloCen.z;
+        float hr = sqrtf(hx*hx + hy*hy + hz*hz) + 1e-6f;
+        float hf = -G * haloMass / (hr * (hr + haloScale) * (hr + haloScale));
+        ax += hf * hx;
+        ay += hf * hy;
+        az += hf * hz;
     }
 
     accelerations[i].x = ax;

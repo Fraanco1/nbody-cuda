@@ -8,7 +8,10 @@ __global__ void computeForces(NodeData* nodeData,
                               int       n,
                               float     theta,
                               float     eps,
-                              float     G);
+                              float     G,
+                              float     haloMass,
+                              float     haloScale,
+                              Vec3      haloCen);
 
 __global__ void accumulateAcc(Vec3* acc, float* sum, int n);
 __global__ void subtractMeanAcc(Vec3* acc, float* sum, int n);

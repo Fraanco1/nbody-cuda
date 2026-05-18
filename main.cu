@@ -20,6 +20,9 @@ int main(int argc, char* argv[]) {
     float theta         = 0.5f;
     float eps           = 0.1f;
     float G             = 1.0f;
+    float haloMass      = 5.0f;
+    float haloScale     = 0.2f;
+    Vec3  haloCen       = { 0.5f, 0.5f, 0.5f };
     int   stepsPerFrame = 5;
     float focal         = 600.0f;
     std::string ic_file = "";
@@ -33,6 +36,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "--eps")           eps           = std::atof(argv[++i]);
         else if (arg == "--stepsPerFrame") stepsPerFrame = std::atoi(argv[++i]);
         else if (arg == "--G")             G             = std::atof(argv[++i]);
+        else if (arg == "--halo-mass")     haloMass      = std::atof(argv[++i]);
+        else if (arg == "--halo-scale")    haloScale     = std::atof(argv[++i]);
         else if (arg == "--focal")         focal         = std::atof(argv[++i]);
         else if (arg == "--ic")            ic_file       = argv[++i];
         else { std::cerr << "Unknown argument: " << arg << "\n"; return 1; }
@@ -120,7 +125,8 @@ int main(int argc, char* argv[]) {
     Tree tree(n);
     tree.rebuild(d_pos, d_vel, d_mass);
     computeForces<<<blocks, threads>>>(tree.nodeData(), tree.arrays(),
-                                       d_pos, d_acc, n, theta, eps, G);
+                                       d_pos, d_acc, n, theta, eps, G,
+                                       haloMass, haloScale, haloCen);
     removeDrift();
 
     // ── Main loop ───────────────────────────────────────────────────────
